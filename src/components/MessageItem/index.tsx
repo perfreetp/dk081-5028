@@ -18,17 +18,26 @@ const typeIconMap: Record<string, string> = {
 };
 
 const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
-  const { isElderlyMode } = useAppStore();
+  const { isElderlyMode, markMessageRead } = useAppStore();
+
+  const handleContainerClick = () => {
+    if (!message.read) {
+      markMessageRead(message.id);
+    }
+  };
 
   const handleAction = () => {
     console.log('[MessageItem] 消息操作:', message.id, message.actionText);
+    if (!message.read) {
+      markMessageRead(message.id);
+    }
     if (message.actionPage) {
       Taro.switchTab({ url: message.actionPage });
     }
   };
 
   return (
-    <View className={classnames(styles.container, !message.read && styles.unread)}>
+    <View className={classnames(styles.container, !message.read && styles.unread)} onClick={handleContainerClick}>
       <View className={styles.header}>
         <View className={classnames(styles.typeIcon, styles[`${message.type}Type`])}>
           {typeIconMap[message.type]}

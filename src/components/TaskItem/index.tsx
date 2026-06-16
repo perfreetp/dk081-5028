@@ -12,7 +12,7 @@ interface TaskItemProps {
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
-  const { isElderlyMode } = useAppStore();
+  const { isElderlyMode, setCurrentTaskGuide } = useAppStore();
 
   const statusText: Record<string, string> = {
     pending: '待开始',
@@ -30,10 +30,11 @@ const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
 
   const handleAction = () => {
     console.log('[TaskItem] 点击任务:', task.id, task.title);
+    setCurrentTaskGuide(task);
     if (task.category === 'license') {
-      Taro.switchTab({ url: '/pages/assistant/index' });
+      Taro.navigateTo({ url: '/pages/task-guide/index' });
     } else {
-      Taro.showToast({ title: '功能开发中', icon: 'none' });
+      Taro.navigateTo({ url: '/pages/task-guide/index' });
     }
   };
 

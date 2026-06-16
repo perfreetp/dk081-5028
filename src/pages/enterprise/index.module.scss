@@ -327,6 +327,7 @@
   &.orange { background: $color-warning-soft; }
   &.purple { background: $color-purple-soft; }
   &.gray { background: rgba($color-text-tertiary, 0.1); }
+  &.red { background: $color-error-soft; }
 }
 
 .settingContent {

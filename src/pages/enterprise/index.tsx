@@ -7,7 +7,11 @@ import { memberList, licenseList } from '@/data/messages';
 import classnames from 'classnames';
 
 const EnterprisePage: React.FC = () => {
-  const { isElderlyMode, toggleElderlyMode } = useAppStore();
+  const { isElderlyMode, toggleElderlyMode, resetAll, hydrateFromStorage } = useAppStore();
+
+  React.useEffect(() => {
+    hydrateFromStorage();
+  }, []);
 
   const handleInviteMember = (role: string) => {
     console.log('[EnterprisePage] 邀请成员:', role);
@@ -59,6 +63,22 @@ const EnterprisePage: React.FC = () => {
     });
   };
 
+  const handleReset = () => {
+    Taro.showModal({
+      title: '确认重置所有数据？',
+      content: '此操作将清除所有已填写的草稿、材料上传记录、任务进度和消息已读状态，恢复到初始状态。',
+      confirmText: '确认重置',
+      cancelText: '取消',
+      confirmColor: '#ff4d4f',
+      success: (res) => {
+        if (res.confirm) {
+          resetAll();
+          Taro.showToast({ title: '已重置所有数据', icon: 'success' });
+        }
+      }
+    });
+  };
+
   const handleSettingItem = (label: string) => {
     console.log('[EnterprisePage] 设置项:', label);
     if (label === '常见问题') {
@@ -80,6 +100,8 @@ const EnterprisePage: React.FC = () => {
       });
     } else if (label === '申报摘要') {
       Taro.switchTab({ url: '/pages/assistant/index' });
+    } else if (label === '重置所有数据') {
+      handleReset();
     } else {
       Taro.showToast({ title: `${label}功能开发中`, icon: 'none' });
     }
@@ -91,6 +113,7 @@ const EnterprisePage: React.FC = () => {
     { icon: '🔍', label: '申报摘要', desc: '查看已填写的所有信息', color: 'blue' },
     { icon: '❓', label: '常见问题', desc: '办事流程、材料要求等FAQ', color: 'purple' },
     { icon: '📞', label: '联系客服', desc: '12345热线 / 在线咨询', color: 'green' },
+    { icon: '♻️', label: '重置所有数据', desc: '清除草稿、材料、进度和已读状态', color: 'red' },
     { icon: 'ℹ️', label: '关于我们', desc: '版本号 v1.0.0', color: 'gray' }
   ];
 

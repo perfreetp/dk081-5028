@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Input, Button } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
@@ -7,8 +7,12 @@ import { questionGroups, conceptList } from '@/data/questions';
 import classnames from 'classnames';
 
 const AssistantPage: React.FC = () => {
-  const { isElderlyMode, currentQuestionGroupIndex, setCurrentQuestionGroupIndex, answers, setAnswer } = useAppStore();
+  const { isElderlyMode, currentQuestionGroupIndex, setCurrentQuestionGroupIndex, answers, setAnswer, hydrateFromStorage } = useAppStore();
   const [showSaveTip, setShowSaveTip] = useState(false);
+
+  useEffect(() => {
+    hydrateFromStorage();
+  }, []);
 
   const handleSelectOption = (questionId: string, option: string, isMulti: boolean) => {
     if (isMulti) {
@@ -36,18 +40,68 @@ const AssistantPage: React.FC = () => {
     }
   };
 
+  const isQuestionAnswered = (qid: string): boolean => {
+    const ans = answers[qid];
+    if (ans === undefined || ans === null) return false;
+    if (Array.isArray(ans)) return ans.length > 0;
+    return typeof ans === 'string' && ans.trim().length > 0;
+  };
+
+  const findFirstMissingRequired = (): { groupIndex: number; questionId: string; questionText: string; groupTitle: string } | null => {
+    for (let g = 0; g < questionGroups.length; g++) {
+      const group = questionGroups[g];
+      for (const q of group.questions) {
+        if (q.required && !isQuestionAnswered(q.id)) {
+          return {
+            groupIndex: g,
+            questionId: q.id,
+            questionText: q.question,
+            groupTitle: group.title
+          };
+        }
+      }
+    }
+    return null;
+  };
+
   const handleSaveDraft = () => {
     console.log('[AssistantPage] 保存草稿');
     setShowSaveTip(true);
     setTimeout(() => setShowSaveTip(false), 2000);
-    Taro.showToast({ title: '草稿已保存', icon: 'success' });
+    Taro.showToast({ title: '草稿已保存至本地', icon: 'success' });
   };
 
   const handleNextGroup = () => {
+    const currentGroup = questionGroups[currentQuestionGroupIndex];
+    for (const q of currentGroup.questions) {
+      if (q.required && !isQuestionAnswered(q.id)) {
+        Taro.showToast({ title: `请填写：${q.question.replace(/[?？]$/, '')}`, icon: 'none', duration: 2500 });
+        return;
+      }
+    }
+
     if (currentQuestionGroupIndex < questionGroups.length - 1) {
       setCurrentQuestionGroupIndex(currentQuestionGroupIndex + 1);
       Taro.pageScrollTo({ scrollTop: 0, duration: 300 });
     } else {
+      const missing = findFirstMissingRequired();
+      if (missing) {
+        Taro.showModal({
+          title: '请先完成以下内容',
+          content: `【${missing.groupTitle}】\n${missing.questionText}`,
+          confirmText: '去填写',
+          cancelText: '知道了',
+          confirmColor: '#1677ff',
+          success: (res) => {
+            if (res.confirm) {
+              setCurrentQuestionGroupIndex(missing.groupIndex);
+              Taro.pageScrollTo({ scrollTop: 0, duration: 300 });
+            }
+          }
+        });
+        return;
+      }
+
       Taro.showModal({
         title: '确认提交申报信息？',
         content: '您已完成所有信息填写，提交后将进入审核阶段。如有需要修改的内容，请返回调整。',

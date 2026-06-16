@@ -4,25 +4,28 @@ import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import MaterialItem from '@/components/MaterialItem';
 import { useAppStore } from '@/store/useAppStore';
-import { materialList } from '@/data/materials';
 import classnames from 'classnames';
 
 type CategoryType = 'all' | 'identity' | 'site' | 'auth' | 'other';
 
 const MaterialsPage: React.FC = () => {
-  const { isElderlyMode } = useAppStore();
+  const { isElderlyMode, materials, hydrateFromStorage } = useAppStore();
   const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
+
+  React.useEffect(() => {
+    hydrateFromStorage();
+  }, []);
 
   const stats = useMemo(() => {
     return {
-      verified: materialList.filter(m => m.status === 'verified').length,
-      uploaded: materialList.filter(m => m.status === 'uploaded').length,
-      needSign: materialList.filter(m => m.status === 'need_sign' || (m.needSign && !m.signed && m.status === 'uploaded')).length,
-      pending: materialList.filter(m => m.status === 'not_uploaded').length,
-      rejected: materialList.filter(m => m.status === 'rejected').length,
-      total: materialList.length
+      verified: materials.filter(m => m.status === 'verified').length,
+      uploaded: materials.filter(m => m.status === 'uploaded').length,
+      needSign: materials.filter(m => m.status === 'need_sign' || (m.needSign && !m.signed && m.status === 'uploaded')).length,
+      pending: materials.filter(m => m.status === 'not_uploaded').length,
+      rejected: materials.filter(m => m.status === 'rejected').length,
+      total: materials.length
     };
-  }, []);
+  }, [materials]);
 
   const categories: { key: CategoryType; label: string }[] = [
     { key: 'all', label: '全部' },
@@ -32,13 +35,13 @@ const MaterialsPage: React.FC = () => {
   ];
 
   const filteredMaterials = useMemo(() => {
-    if (activeCategory === 'all') return materialList;
-    return materialList.filter(m => m.category === activeCategory);
-  }, [activeCategory]);
+    if (activeCategory === 'all') return materials;
+    return materials.filter(m => m.category === activeCategory);
+  }, [activeCategory, materials]);
 
   const needSignList = useMemo(() =>
-    materialList.filter(m => m.needSign && !m.signed && m.status !== 'verified'),
-  []);
+    materials.filter(m => m.needSign && !m.signed && m.status !== 'verified'),
+  [materials]);
 
   const handleBatchUpload = () => {
     console.log('[MaterialsPage] 批量上传');
@@ -151,7 +154,7 @@ const MaterialsPage: React.FC = () => {
         {categories.map(cat => {
           const count = cat.key === 'all'
             ? stats.total
-            : materialList.filter(m => m.category === cat.key).length;
+            : materials.filter(m => m.category === cat.key).length;
           return (
             <View
               key={cat.key}

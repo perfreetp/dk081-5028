@@ -4,7 +4,8 @@ export default defineAppConfig({
     'pages/assistant/index',
     'pages/materials/index',
     'pages/messages/index',
-    'pages/enterprise/index'
+    'pages/enterprise/index',
+    'pages/task-guide/index'
   ],
   window: {
     backgroundTextStyle: 'light',

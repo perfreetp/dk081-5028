@@ -12,7 +12,7 @@ interface MaterialItemProps {
 }
 
 const MaterialItem: React.FC<MaterialItemProps> = ({ material }) => {
-  const { isElderlyMode } = useAppStore();
+  const { isElderlyMode, updateMaterialStatus } = useAppStore();
 
   const statusText: Record<string, string> = {
     not_uploaded: '待上传',
@@ -22,15 +22,21 @@ const MaterialItem: React.FC<MaterialItemProps> = ({ material }) => {
     rejected: '被退回'
   };
 
-  const handleUpload = () => {
-    console.log('[MaterialItem] 上传材料:', material.id, material.name);
+  const doUpload = (onComplete?: () => void) => {
     Taro.chooseImage({
       count: 9,
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
       success: (res) => {
         console.log('[MaterialItem] 选择图片成功:', res.tempFilePaths.length, '张');
-        Taro.showToast({ title: `已选择${res.tempFilePaths.length}张图片`, icon: 'success' });
+        Taro.showLoading({ title: '上传中...' });
+        setTimeout(() => {
+          Taro.hideLoading();
+          const newStatus = material.needSign ? 'need_sign' : 'uploaded';
+          updateMaterialStatus(material.id, newStatus);
+          Taro.showToast({ title: '上传成功', icon: 'success' });
+          if (onComplete) onComplete();
+        }, 800);
       },
       fail: (err) => {
         console.error('[MaterialItem] 选择图片失败:', err);
@@ -38,14 +44,48 @@ const MaterialItem: React.FC<MaterialItemProps> = ({ material }) => {
     });
   };
 
+  const handleUpload = () => {
+    console.log('[MaterialItem] 上传材料:', material.id, material.name);
+    doUpload();
+  };
+
+  const handleReupload = () => {
+    console.log('[MaterialItem] 重新上传被退回材料:', material.id);
+    doUpload(() => {
+      Taro.showToast({ title: '已重新提交审核', icon: 'success' });
+    });
+  };
+
   const handleFix = () => {
-    console.log('[MaterialItem] 修改材料:', material.id);
-    Taro.showToast({ title: '进入修改页面', icon: 'none' });
+    console.log('[MaterialItem] 查看示例/预览:', material.id);
+    Taro.showToast({ title: '进入预览', icon: 'none' });
   };
 
   const handleSign = () => {
     console.log('[MaterialItem] 签字确认:', material.id);
-    Taro.showToast({ title: '请在纸质文件上签字后重新拍照上传', icon: 'none', duration: 2000 });
+    Taro.showModal({
+      title: '签字指引',
+      content: '请按照以下步骤操作：\n1. 打印纸质文件\n2. 法定代表人在指定位置签字并加盖公章\n3. 拍照后重新上传',
+      confirmText: '去拍照',
+      cancelText: '知道了',
+      success: (res) => {
+        if (res.confirm) {
+          Taro.chooseImage({
+            count: 9,
+            sizeType: ['compressed'],
+            sourceType: ['camera'],
+            success: (res) => {
+              Taro.showLoading({ title: '上传中...' });
+              setTimeout(() => {
+                Taro.hideLoading();
+                updateMaterialStatus(material.id, 'uploaded', true);
+                Taro.showToast({ title: '已完成签字上传', icon: 'success' });
+              }, 800);
+            }
+          });
+        }
+      }
+    });
   };
 
   return (
@@ -99,7 +139,7 @@ const MaterialItem: React.FC<MaterialItemProps> = ({ material }) => {
             <Button className={classnames(styles.actionBtn, styles.outline)} onClick={handleFix}>
               查看示例
             </Button>
-            <Button className={classnames(styles.actionBtn, styles.primary)} onClick={handleFix}>
+            <Button className={classnames(styles.actionBtn, styles.primary)} onClick={handleReupload}>
               重新上传
             </Button>
           </>

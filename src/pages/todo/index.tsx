@@ -1,43 +1,44 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import ProgressCard from '@/components/ProgressCard';
 import TaskItem from '@/components/TaskItem';
 import { useAppStore } from '@/store/useAppStore';
-import { taskList } from '@/data/tasks';
-import { materialList } from '@/data/materials';
-import { messageList } from '@/data/messages';
 import classnames from 'classnames';
 
 type TabType = 'all' | 'urgent' | 'in_progress' | 'pending';
 
 const TodoPage: React.FC = () => {
-  const { isElderlyMode } = useAppStore();
+  const { isElderlyMode, tasks, materials, messages, hydrateFromStorage } = useAppStore();
   const [activeTab, setActiveTab] = useState<TabType>('all');
 
-  const unreadCount = messageList.filter(m => !m.read).length;
-  const rejectCount = messageList.filter(m => m.type === 'reject' && !m.read).length;
+  useEffect(() => {
+    hydrateFromStorage();
+  }, []);
 
-  const materialsDone = materialList.filter(
+  const unreadCount = useMemo(() => messages.filter(m => !m.read).length, [messages]);
+  const rejectCount = useMemo(() => messages.filter(m => m.type === 'reject' && !m.read).length, [messages]);
+
+  const materialsDone = useMemo(() => materials.filter(
     m => m.status === 'verified' || m.status === 'uploaded'
-  ).length;
+  ).length, [materials]);
 
-  const completedTasks = taskList.filter(t => t.status === 'completed').length;
-  const pendingTasks = taskList.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+  const completedTasks = useMemo(() => tasks.filter(t => t.status === 'completed').length, [tasks]);
+  const pendingTasks = useMemo(() => tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length, [tasks]);
 
   const filteredTasks = useMemo(() => {
     switch (activeTab) {
       case 'urgent':
-        return taskList.filter(t => t.priority === 'high' || t.status === 'rejected');
+        return tasks.filter(t => t.priority === 'high' || t.status === 'rejected');
       case 'in_progress':
-        return taskList.filter(t => t.status === 'in_progress');
+        return tasks.filter(t => t.status === 'in_progress');
       case 'pending':
-        return taskList.filter(t => t.status === 'pending');
+        return tasks.filter(t => t.status === 'pending');
       default:
-        return taskList;
+        return tasks;
     }
-  }, [activeTab]);
+  }, [activeTab, tasks]);
 
   const handleRefresh = () => {
     console.log('[TodoPage] 下拉刷新');
@@ -107,11 +108,11 @@ const TodoPage: React.FC = () => {
       </View>
 
       <ProgressCard
-        totalTasks={taskList.length}
+        totalTasks={tasks.length}
         completedTasks={completedTasks}
         pendingTasks={pendingTasks}
         materialsDone={materialsDone}
-        materialsTotal={materialList.length}
+        materialsTotal={materials.length}
       />
 
       <View className={styles.quickSection}>

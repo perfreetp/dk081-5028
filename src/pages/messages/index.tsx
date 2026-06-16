@@ -1,25 +1,29 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import MessageItem from '@/components/MessageItem';
 import { useAppStore } from '@/store/useAppStore';
-import { messageList, timelineList, reminderList } from '@/data/messages';
+import { timelineList, reminderList } from '@/data/messages';
 import classnames from 'classnames';
 
 type TabType = 'all' | 'progress' | 'reminder' | 'reject';
 
 const MessagesPage: React.FC = () => {
-  const { isElderlyMode } = useAppStore();
+  const { isElderlyMode, messages, markAllMessagesRead, markMessageRead, hydrateFromStorage } = useAppStore();
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [reminders, setReminders] = useState(reminderList);
 
+  useEffect(() => {
+    hydrateFromStorage();
+  }, []);
+
   const unreadByType = useMemo(() => ({
-    all: messageList.filter(m => !m.read).length,
-    progress: messageList.filter(m => m.type === 'progress' && !m.read).length,
-    reminder: messageList.filter(m => m.type === 'reminder' && !m.read).length,
-    reject: messageList.filter(m => m.type === 'reject' && !m.read).length
-  }), []);
+    all: messages.filter(m => !m.read).length,
+    progress: messages.filter(m => m.type === 'progress' && !m.read).length,
+    reminder: messages.filter(m => m.type === 'reminder' && !m.read).length,
+    reject: messages.filter(m => m.type === 'reject' && !m.read).length
+  }), [messages]);
 
   const tabOptions: { key: TabType; label: string }[] = [
     { key: 'all', label: '全部' },
@@ -29,9 +33,9 @@ const MessagesPage: React.FC = () => {
   ];
 
   const filteredMessages = useMemo(() => {
-    if (activeTab === 'all') return messageList;
-    return messageList.filter(m => m.type === activeTab);
-  }, [activeTab]);
+    if (activeTab === 'all') return messages;
+    return messages.filter(m => m.type === activeTab);
+  }, [activeTab, messages]);
 
   const overallProgress = useMemo(() => {
     const done = timelineList.filter(t => t.status === 'done').length;
@@ -46,6 +50,7 @@ const MessagesPage: React.FC = () => {
 
   const handleMarkAllRead = () => {
     console.log('[MessagesPage] 全部标为已读');
+    markAllMessagesRead();
     Taro.showToast({ title: '已全部标记', icon: 'success' });
   };
 

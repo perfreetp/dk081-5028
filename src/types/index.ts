@@ -99,8 +99,25 @@ export interface ConceptItem {
 export interface AppState {
   isElderlyMode: boolean;
   toggleElderlyMode: () => void;
+
   currentQuestionGroupIndex: number;
   setCurrentQuestionGroupIndex: (index: number) => void;
   answers: Record<string, string | string[]>;
   setAnswer: (questionId: string, value: string | string[]) => void;
+
+  materials: MaterialItem[];
+  updateMaterialStatus: (materialId: string, status: MaterialItem['status'], signed?: boolean) => void;
+
+  tasks: TaskItem[];
+  updateTaskProgress: (taskId: string, progress: number, status?: TaskItem['status']) => void;
+
+  messages: MessageItem[];
+  markMessageRead: (messageId: string) => void;
+  markAllMessagesRead: () => void;
+
+  currentTaskGuide: TaskItem | null;
+  setCurrentTaskGuide: (task: TaskItem | null) => void;
+
+  resetAll: () => void;
+  hydrateFromStorage: () => void;
 }
