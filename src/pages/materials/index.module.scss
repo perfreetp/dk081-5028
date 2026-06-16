@@ -21,6 +21,16 @@
   margin-bottom: $spacing-md;
 }
 
+.refreshHint {
+  font-size: 22rpx;
+  color: $color-primary;
+  font-weight: $font-weight-regular;
+  margin-left: 12rpx;
+  background: $color-primary-soft;
+  padding: 4rpx 12rpx;
+  border-radius: $radius-round;
+}
+
 .statGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

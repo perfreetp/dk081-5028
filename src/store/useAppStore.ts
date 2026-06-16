@@ -70,18 +70,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveToStorage(get());
   },
 
-  materials: stored.materials ?? initialMaterialList,
+  materials: initialMaterialList.map(im => {
+    const existed = stored.materials?.find(sm => sm.id === im.id);
+    return existed
+      ? { ...im, status: existed.status, signed: existed.signed, uploadTime: existed.uploadTime, rejectReason: existed.rejectReason }
+      : im;
+  }),
   updateMaterialStatus: (materialId: string, status: MaterialItem['status'], signed?: boolean) => {
     set((state) => ({
       materials: state.materials.map(m => {
         if (m.id === materialId) {
           const now = new Date();
           const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          const shouldClearReject = status !== 'rejected';
+          const shouldUpdateTime = status === 'uploaded' || status === 'need_sign';
           return {
             ...m,
             status,
             signed: signed !== undefined ? signed : m.signed,
-            uploadTime: status === 'uploaded' ? timeStr : m.uploadTime
+            uploadTime: shouldUpdateTime ? timeStr : m.uploadTime,
+            rejectReason: shouldClearReject ? undefined : m.rejectReason
           };
         }
         return m;

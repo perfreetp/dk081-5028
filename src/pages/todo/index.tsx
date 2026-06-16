@@ -21,7 +21,7 @@ const TodoPage: React.FC = () => {
   const rejectCount = useMemo(() => messages.filter(m => m.type === 'reject' && !m.read).length, [messages]);
 
   const materialsDone = useMemo(() => materials.filter(
-    m => m.status === 'verified' || m.status === 'uploaded'
+    m => m.status === 'verified' || m.status === 'uploaded' || m.status === 'need_sign'
   ).length, [materials]);
 
   const completedTasks = useMemo(() => tasks.filter(t => t.status === 'completed').length, [tasks]);

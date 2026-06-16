@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, Input, Button } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
@@ -6,9 +6,37 @@ import { useAppStore } from '@/store/useAppStore';
 import { questionGroups, conceptList } from '@/data/questions';
 import classnames from 'classnames';
 
+interface MissingItem {
+  groupIndex: number;
+  groupTitle: string;
+  questionId: string;
+  questionText: string;
+}
+
+interface MaterialBrief {
+  id: string;
+  name: string;
+  done: boolean;
+}
+
+interface RiskItem {
+  title: string;
+  content: string;
+}
+
 const AssistantPage: React.FC = () => {
-  const { isElderlyMode, currentQuestionGroupIndex, setCurrentQuestionGroupIndex, answers, setAnswer, hydrateFromStorage } = useAppStore();
+  const {
+    isElderlyMode,
+    currentQuestionGroupIndex,
+    setCurrentQuestionGroupIndex,
+    answers,
+    setAnswer,
+    materials,
+    hydrateFromStorage
+  } = useAppStore();
+
   const [showSaveTip, setShowSaveTip] = useState(false);
+  const [showPrecheck, setShowPrecheck] = useState(false);
 
   useEffect(() => {
     hydrateFromStorage();
@@ -47,16 +75,23 @@ const AssistantPage: React.FC = () => {
     return typeof ans === 'string' && ans.trim().length > 0;
   };
 
-  const findFirstMissingRequired = (): { groupIndex: number; questionId: string; questionText: string; groupTitle: string } | null => {
+  const getAnswerText = (qid: string): string => {
+    const ans = answers[qid];
+    if (!ans) return '';
+    if (Array.isArray(ans)) return ans.join('、');
+    return ans;
+  };
+
+  const findFirstMissingRequired = (): MissingItem | null => {
     for (let g = 0; g < questionGroups.length; g++) {
       const group = questionGroups[g];
       for (const q of group.questions) {
         if (q.required && !isQuestionAnswered(q.id)) {
           return {
             groupIndex: g,
+            groupTitle: group.title,
             questionId: q.id,
-            questionText: q.question,
-            groupTitle: group.title
+            questionText: q.question
           };
         }
       }
@@ -84,40 +119,7 @@ const AssistantPage: React.FC = () => {
       setCurrentQuestionGroupIndex(currentQuestionGroupIndex + 1);
       Taro.pageScrollTo({ scrollTop: 0, duration: 300 });
     } else {
-      const missing = findFirstMissingRequired();
-      if (missing) {
-        Taro.showModal({
-          title: '请先完成以下内容',
-          content: `【${missing.groupTitle}】\n${missing.questionText}`,
-          confirmText: '去填写',
-          cancelText: '知道了',
-          confirmColor: '#1677ff',
-          success: (res) => {
-            if (res.confirm) {
-              setCurrentQuestionGroupIndex(missing.groupIndex);
-              Taro.pageScrollTo({ scrollTop: 0, duration: 300 });
-            }
-          }
-        });
-        return;
-      }
-
-      Taro.showModal({
-        title: '确认提交申报信息？',
-        content: '您已完成所有信息填写，提交后将进入审核阶段。如有需要修改的内容，请返回调整。',
-        confirmText: '确认提交',
-        cancelText: '再看看',
-        success: (res) => {
-          if (res.confirm) {
-            Taro.showLoading({ title: '提交中...' });
-            setTimeout(() => {
-              Taro.hideLoading();
-              Taro.showToast({ title: '已提交审核', icon: 'success' });
-              Taro.switchTab({ url: '/pages/messages/index' });
-            }, 1200);
-          }
-        }
-      });
+      setShowPrecheck(true);
     }
   };
 
@@ -154,6 +156,157 @@ const AssistantPage: React.FC = () => {
         }
       }
     });
+  };
+
+  // ============ 预审清单计算 ============
+  const precheckData = useMemo(() => {
+    // 1. 分组进度
+    const groupProgress = questionGroups.map(group => {
+      const requiredQs = group.questions.filter(q => q.required);
+      const done = requiredQs.filter(q => isQuestionAnswered(q.id)).length;
+      const total = requiredQs.length || 1;
+      const pct = Math.round((done / total) * 100);
+      return {
+        id: group.id,
+        title: group.title,
+        done,
+        total,
+        pct,
+        status: pct === 100 ? 'done' : pct > 0 ? 'partial' : 'empty'
+      };
+    });
+
+    // 总进度
+    const totalRequired = questionGroups.reduce((s, g) => s + g.questions.filter(q => q.required).length, 0);
+    const totalDone = questionGroups.reduce((s, g) => s + g.questions.filter(q => q.required && isQuestionAnswered(q.id)).length, 0);
+    const overallPct = Math.round((totalDone / (totalRequired || 1)) * 100);
+
+    // 2. 缺失项
+    const missingList: MissingItem[] = [];
+    questionGroups.forEach((group, gIdx) => {
+      group.questions.forEach(q => {
+        if (q.required && !isQuestionAnswered(q.id)) {
+          missingList.push({
+            groupIndex: gIdx,
+            groupTitle: group.title,
+            questionId: q.id,
+            questionText: q.question
+          });
+        }
+      });
+    });
+
+    // 3. 材料概览
+    const materialBriefs: MaterialBrief[] = materials.map(m => ({
+      id: m.id,
+      name: m.name,
+      done: m.status === 'uploaded' || m.status === 'verified' || m.status === 'need_sign'
+    }));
+    const materialsDoneCount = materialBriefs.filter(m => m.done).length;
+
+    // 4. 风险提醒
+    const risks: RiskItem[] = [];
+
+    // 注册资本风险
+    const capitalText = getAnswerText('q_capital');
+    if (capitalText) {
+      const num = parseFloat(capitalText.replace(/[^0-9.]/g, ''));
+      if (!isNaN(num)) {
+        if (num < 10) {
+          risks.push({
+            title: '注册资本偏低',
+            content: '建议小微企业注册资本填写 50-500 万，过低可能影响客户信任和投标资格。'
+          });
+        } else if (num > 5000) {
+          risks.push({
+            title: '注册资本偏高',
+            content: '注册资本过高会增加印花税负担，且认缴需承担对应法律责任，请根据实际业务需求填写。'
+          });
+        }
+      }
+    }
+
+    // 经营范围风险
+    const businessScope = getAnswerText('q_scope');
+    if (!businessScope) {
+      risks.push({
+        title: '经营范围未填写',
+        content: '经营范围第一项影响税种认定，请务必准确填写与主营业务相关的范围。'
+      });
+    }
+
+    // 法人身份证风险
+    const legalIdCard = getAnswerText('q_legal_idcard');
+    if (legalIdCard && legalIdCard.replace(/\D/g, '').length < 15) {
+      risks.push({
+        title: '法定代表人身份证号可能不完整',
+        content: '身份证号应为18位，请核对后重新填写。'
+      });
+    }
+
+    // 社保风险
+    const hasSocialOpt = (answers['q_social'] as string[]) || [];
+    if (!hasSocialOpt.includes('不办理社保') && materials.filter(m => m.category === 'social').length === 0) {
+      // 不强制
+    }
+
+    // 材料退回风险
+    const rejectedCount = materials.filter(m => m.status === 'rejected').length;
+    if (rejectedCount > 0) {
+      risks.push({
+        title: `有 ${rejectedCount} 份材料被退回`,
+        content: '被退回的材料需要按照要求修改后重新上传，否则会影响办理进度。'
+      });
+    }
+
+    // 待签字风险
+    const needSignCount = materials.filter(m => (m.status === 'need_sign' || (m.needSign && !m.signed && m.status === 'uploaded'))).length;
+    if (needSignCount > 0) {
+      risks.push({
+        title: `有 ${needSignCount} 份材料需要签字盖章`,
+        content: '未签字盖章的材料无法通过审核，请按指引完成签字后重新拍照上传。'
+      });
+    }
+
+    return {
+      groupProgress,
+      overallPct,
+      totalRequired,
+      totalDone,
+      missingList,
+      materialBriefs,
+      materialsDoneCount,
+      risks
+    };
+  }, [answers, materials]);
+
+  const canSubmit = precheckData.missingList.length === 0;
+
+  const handleJumpToGroup = (groupIndex: number) => {
+    setShowPrecheck(false);
+    setCurrentQuestionGroupIndex(groupIndex);
+    setTimeout(() => {
+      Taro.pageScrollTo({ scrollTop: 0, duration: 300 });
+    }, 300);
+  };
+
+  const handleJumpToMaterials = () => {
+    setShowPrecheck(false);
+    setTimeout(() => {
+      Taro.switchTab({ url: '/pages/materials/index' });
+    }, 200);
+  };
+
+  const handleConfirmSubmit = () => {
+    setShowPrecheck(false);
+    Taro.showLoading({ title: '提交中...' });
+    setTimeout(() => {
+      Taro.hideLoading();
+      Taro.showToast({ title: '已提交审核', icon: 'success' });
+      setTimeout(() => {
+        Taro.switchTab({ url: '/pages/messages/index' });
+      }, 800);
+    }, 1200);
   };
 
   const currentGroup = questionGroups[currentQuestionGroupIndex];
@@ -298,9 +451,146 @@ const AssistantPage: React.FC = () => {
           存草稿
         </Button>
         <Button className={styles.btnPrimary} onClick={handleNextGroup}>
-          {isLastGroup ? '提交申报' : '下一步'}
+          {isLastGroup ? '预审清单' : '下一步'}
         </Button>
       </View>
+
+      {/* 预审清单弹窗 */}
+      {showPrecheck && (
+        <View className={styles.precheckMask} onClick={(e) => {
+          if (e.target === e.currentTarget) setShowPrecheck(false);
+        }}>
+          <View className={styles.precheckSheet}>
+            <View className={styles.precheckHeader}>
+              <Text className={styles.precheckTitle}>
+                📋 申报预审清单
+              </Text>
+              <Text className={styles.precheckClose} onClick={() => setShowPrecheck(false)}>×</Text>
+            </View>
+
+            <ScrollView className={styles.precheckBody} scrollY>
+              {/* 总体进度 */}
+              <View className={styles.precheckSection}>
+                <View className={styles.sectionTitle}>📊 填报进度概览</View>
+                <View className={styles.precheckProgress}>
+                  <Text className={styles.progressText}>
+                    已填 {precheckData.totalDone} / {precheckData.totalRequired} 项必填
+                  </Text>
+                  <Text className={styles.progressPct}>{precheckData.overallPct}%</Text>
+                </View>
+                <View className={styles.precheckProgressBar}>
+                  <View className={styles.progressFill} style={{ width: `${precheckData.overallPct}%` }} />
+                </View>
+                <View className={styles.groupProgressList}>
+                  {precheckData.groupProgress.map((gp, idx) => (
+                    <View
+                      key={gp.id}
+                      className={classnames(
+                        styles.groupProgressItem,
+                        currentQuestionGroupIndex === idx && styles.active
+                      )}
+                      onClick={() => handleJumpToGroup(idx)}
+                    >
+                      <Text className={styles.groupName}>
+                        {idx + 1}. {gp.title}
+                      </Text>
+                      <Text className={classnames(styles.groupStatus, styles[gp.status])}>
+                        {gp.status === 'done' ? '✓ 已完成' :
+                          gp.status === 'partial' ? `${gp.done}/${gp.total} 项` : '未填写'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* 缺失项 */}
+              <View className={styles.precheckSection}>
+                <View className={styles.sectionTitle}>
+                  ⚠️ 缺失的必填项
+                  {precheckData.missingList.length > 0 && (
+                    <Text style={{ color: '#fa8c16', fontSize: 24 }}>
+                      （{precheckData.missingList.length}项）
+                    </Text>
+                  )}
+                </View>
+                {precheckData.missingList.length > 0 ? (
+                  precheckData.missingList.map(item => (
+                    <View
+                      key={item.questionId}
+                      className={styles.missingItem}
+                      onClick={() => handleJumpToGroup(item.groupIndex)}
+                    >
+                      <Text className={styles.missingText}>
+                        <Text className={styles.groupTag}>{item.groupTitle}</Text>
+                        {item.questionText.replace(/[?？]$/, '')}
+                      </Text>
+                      <Text className={styles.jumpBtn}>去填写 ›</Text>
+                    </View>
+                  ))
+                ) : (
+                  <View className={styles.emptyHint}>✓ 所有必填项已完成</View>
+                )}
+              </View>
+
+              {/* 所需材料 */}
+              <View className={styles.precheckSection} onClick={handleJumpToMaterials}>
+                <View className={styles.sectionTitle}>
+                  📎 所需材料准备
+                  <Text style={{ color: '#9ca3af', fontSize: 24 }}>
+                    （{precheckData.materialsDoneCount}/{precheckData.materialBriefs.length}）
+                  </Text>
+                  <Text style={{ color: '#1677ff', fontSize: 24, marginLeft: 'auto' }}>
+                    去处理 ›
+                  </Text>
+                </View>
+                {precheckData.materialBriefs.map(m => (
+                  <View key={m.id} className={styles.materialItem}>
+                    <Text className={styles.matName}>{m.name}</Text>
+                    <Text className={classnames(styles.matStatus, m.done ? 'done' : 'need')}>
+                      {m.done ? '✓ 已上传' : '待上传'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* 风险提醒 */}
+              <View className={styles.precheckSection}>
+                <View className={styles.sectionTitle}>
+                  🔴 风险与提示
+                  {precheckData.risks.length > 0 && (
+                    <Text style={{ color: '#ff4d4f', fontSize: 24 }}>
+                      （{precheckData.risks.length}条）
+                    </Text>
+                  )}
+                </View>
+                {precheckData.risks.length > 0 ? (
+                  precheckData.risks.map((r, idx) => (
+                    <View key={idx} className={styles.riskItem}>
+                      <View className={styles.riskTitle}>{r.title}</View>
+                      <View className={styles.riskText}>{r.content}</View>
+                    </View>
+                  ))
+                ) : (
+                  <View className={styles.emptyHint}>✓ 暂无风险提醒</View>
+                )}
+              </View>
+            </ScrollView>
+
+            <View className={styles.precheckFooter}>
+              <Button className={classnames(styles.btn, styles.btnCancel)} onClick={() => setShowPrecheck(false)}>
+                返回修改
+              </Button>
+              <Button
+                className={classnames(styles.btn, styles.btnSubmit)}
+                disabled={!canSubmit}
+                onClick={handleConfirmSubmit}
+              >
+                {canSubmit ? '确认提交申报' : '请先完成缺失项'}
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 };

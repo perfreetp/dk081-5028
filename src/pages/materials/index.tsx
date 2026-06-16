@@ -4,44 +4,116 @@ import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import MaterialItem from '@/components/MaterialItem';
 import { useAppStore } from '@/store/useAppStore';
+import { DisplayCondition } from '@/types';
 import classnames from 'classnames';
 
 type CategoryType = 'all' | 'identity' | 'site' | 'auth' | 'other';
 
+const evaluateCondition = (cond: DisplayCondition, answers: Record<string, string | string[]>): boolean => {
+  const ans = answers[cond.questionId];
+
+  if (cond.textNotEmpty) {
+    if (!ans) return false;
+    if (Array.isArray(ans)) return ans.length > 0;
+    return typeof ans === 'string' && ans.trim().length > 0;
+  }
+
+  const ansText: string = Array.isArray(ans) ? ans.join('、') : (ans || '');
+  const ansArray: string[] = Array.isArray(ans) ? ans : (ans ? [ans] : []);
+
+  if (cond.anyOf) {
+    const match = cond.anyOf.some(opt => ansArray.includes(opt) || ansText.includes(opt));
+    if (!match) return false;
+  }
+
+  if (cond.noneOf) {
+    const conflict = cond.noneOf.some(opt => ansArray.includes(opt) || ansText.includes(opt));
+    if (conflict) return false;
+  }
+
+  return true;
+};
+
+const checkMaterialDisplay = (
+  material,
+  answers: Record<string, string | string[]>
+): boolean => {
+  if (!material.conditions || material.conditions.length === 0) return true;
+  return material.conditions.every(cond => evaluateCondition(cond, answers));
+};
+
+const getShareholderCount = (answers: Record<string, string | string[]>): number => {
+  const q7 = answers['q7'] as string;
+  const q3 = answers['q3'] as string;
+  if (q3?.includes('独资') || q7 === '仅1人（独资）') return 1;
+  if (q7 === '2人') return 2;
+  if (q7 === '3-5人') return 4;
+  if (q7 === '5人以上') return 6;
+  return 1;
+};
+
+const expandDynamicMaterials = (materials, answers) => {
+  const result = [];
+  materials.forEach(m => {
+    if (checkMaterialDisplay(m, answers)) {
+      if (m.dynamicSuffix === '_shareholder_count') {
+        const count = getShareholderCount(answers);
+        for (let i = 1; i <= count; i++) {
+          result.push({
+            ...m,
+            id: `${m.id}_${i}`,
+            name: `${m.name}（股东${count > 1 ? i : ''}）`.replace('（股东）', ''),
+            dynamicSuffix: undefined,
+            conditions: undefined
+          });
+        }
+      } else {
+        result.push(m);
+      }
+    }
+  });
+  return result;
+};
+
 const MaterialsPage: React.FC = () => {
-  const { isElderlyMode, materials, hydrateFromStorage } = useAppStore();
+  const { isElderlyMode, materials, hydrateFromStorage, answers } = useAppStore();
   const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
 
   React.useEffect(() => {
     hydrateFromStorage();
   }, []);
 
+  const displayedMaterials = useMemo(() => {
+    return expandDynamicMaterials(materials, answers);
+  }, [materials, answers]);
+
   const stats = useMemo(() => {
     return {
-      verified: materials.filter(m => m.status === 'verified').length,
-      uploaded: materials.filter(m => m.status === 'uploaded').length,
-      needSign: materials.filter(m => m.status === 'need_sign' || (m.needSign && !m.signed && m.status === 'uploaded')).length,
-      pending: materials.filter(m => m.status === 'not_uploaded').length,
-      rejected: materials.filter(m => m.status === 'rejected').length,
-      total: materials.length
+      verified: displayedMaterials.filter(m => m.status === 'verified').length,
+      uploaded: displayedMaterials.filter(m => m.status === 'uploaded' || m.status === 'need_sign').length,
+      needSign: displayedMaterials.filter(m => m.status === 'need_sign' || (m.needSign && !m.signed && m.status === 'uploaded')).length,
+      pending: displayedMaterials.filter(m => m.status === 'not_uploaded').length,
+      rejected: displayedMaterials.filter(m => m.status === 'rejected').length,
+      total: displayedMaterials.length
     };
-  }, [materials]);
+  }, [displayedMaterials]);
 
   const categories: { key: CategoryType; label: string }[] = [
     { key: 'all', label: '全部' },
     { key: 'identity', label: '身份证明' },
     { key: 'site', label: '场地材料' },
-    { key: 'auth', label: '授权文书' }
+    { key: 'auth', label: '授权文书' },
+    { key: 'other', label: '社保/发票' }
   ];
 
   const filteredMaterials = useMemo(() => {
-    if (activeCategory === 'all') return materials;
-    return materials.filter(m => m.category === activeCategory);
-  }, [activeCategory, materials]);
+    if (activeCategory === 'all') return displayedMaterials;
+    return displayedMaterials.filter(m => m.category === activeCategory);
+  }, [activeCategory, displayedMaterials]);
 
   const needSignList = useMemo(() =>
-    materials.filter(m => m.needSign && !m.signed && m.status !== 'verified'),
-  [materials]);
+    displayedMaterials.filter(m => m.needSign && !m.signed && m.status !== 'verified'),
+  [displayedMaterials]);
 
   const handleBatchUpload = () => {
     console.log('[MaterialsPage] 批量上传');
@@ -110,11 +182,18 @@ const MaterialsPage: React.FC = () => {
     });
   };
 
+  const handleRefreshHint = () => {
+    Taro.showToast({ title: '材料清单已根据填报内容自动更新', icon: 'none' });
+  };
+
   return (
     <ScrollView className={styles.page} scrollY>
       <View className={styles.statCard}>
         <Text className={classnames(styles.statTitle, isElderlyMode && 'elderly-zoom-subtitle')}>
           材料概览 · 共 {stats.total} 项
+          <Text className={styles.refreshHint} onClick={handleRefreshHint}>
+            {' '}🔄 智能匹配
+          </Text>
         </Text>
         <View className={styles.statGrid}>
           <View className={styles.statItem}>
@@ -154,7 +233,7 @@ const MaterialsPage: React.FC = () => {
         {categories.map(cat => {
           const count = cat.key === 'all'
             ? stats.total
-            : materials.filter(m => m.category === cat.key).length;
+            : displayedMaterials.filter(m => m.category === cat.key).length;
           return (
             <View
               key={cat.key}
@@ -187,7 +266,7 @@ const MaterialsPage: React.FC = () => {
         <View className={styles.emptyTip}>
           <Text className={styles.icon}>📁</Text>
           <Text className={styles.title}>该分类暂无材料</Text>
-          <Text className={styles.text}>点击右下角按钮开始拍照上传</Text>
+          <Text className={styles.text}>根据填报内容自动匹配，或切换分类查看</Text>
         </View>
       )}
 

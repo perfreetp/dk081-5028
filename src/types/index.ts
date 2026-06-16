@@ -29,6 +29,13 @@ export interface QuestionGroup {
   completed: boolean;
 }
 
+export interface DisplayCondition {
+  questionId: string;
+  anyOf?: string[];
+  noneOf?: string[];
+  textNotEmpty?: boolean;
+}
+
 export interface MaterialItem {
   id: string;
   name: string;
@@ -40,6 +47,8 @@ export interface MaterialItem {
   pages: number;
   uploadTime?: string;
   rejectReason?: string;
+  conditions?: DisplayCondition[];
+  dynamicSuffix?: string;
 }
 
 export interface MessageItem {

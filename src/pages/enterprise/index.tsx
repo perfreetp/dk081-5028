@@ -1,18 +1,128 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, ScrollView, Button } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import { useAppStore } from '@/store/useAppStore';
-import { memberList, licenseList } from '@/data/messages';
+import { memberList as initialMemberList, licenseList } from '@/data/messages';
 import classnames from 'classnames';
 
+const maskIdCard = (id: string): string => {
+  if (!id) return '';
+  if (id.length < 10) return id;
+  return id.slice(0, 4) + '********' + id.slice(-4);
+};
+
 const EnterprisePage: React.FC = () => {
-  const { isElderlyMode, toggleElderlyMode, resetAll, hydrateFromStorage } = useAppStore();
+  const { isElderlyMode, toggleElderlyMode, resetAll, hydrateFromStorage, answers, tasks } = useAppStore();
 
   React.useEffect(() => {
     hydrateFromStorage();
   }, []);
 
+  const getAns = (qid: string): string => {
+    const ans = answers[qid];
+    if (!ans) return '';
+    if (Array.isArray(ans)) return ans.join('、');
+    return ans;
+  };
+
+  // ============ 企业信息同步 ============
+  const enterpriseData = useMemo(() => {
+    const q1 = getAns('q1'); // 字号
+    const q2 = getAns('q2'); // 行业
+    const q3 = getAns('q3'); // 企业类型
+    const q4 = getAns('q4'); // 注册资本
+    const q5 = getAns('q5'); // 主营
+    const q8 = getAns('q8'); // 法定代表人姓名
+    const q9 = getAns('q9'); // 法定代表人身份证
+    const q11 = getAns('q11'); // 注册地址区域
+    const q12 = getAns('q12'); // 详细地址
+
+    // 企业名称 = 区域 + 字号 + 行业 + 组织形式
+    let companyName = '';
+    const region = q11?.split('-')[0] || '北京';
+    if (q1 && q2) {
+      let suffix = '有限公司';
+      if (q3?.includes('个体')) suffix = '';
+      else if (q3?.includes('合伙')) suffix = '合伙企业';
+      else if (q3?.includes('股份')) suffix = '股份有限公司';
+      companyName = `${region}${q1}${q2.includes('服务') ? '' : q2.slice(0, 2)}${suffix}`.replace(/信息技术服务/g, '科技').replace(/批发和零售/g, '商贸');
+    }
+
+    // 进度：取license任务的进度
+    const licenseTask = tasks.find(t => t.id === 'task_license');
+    const progress = licenseTask?.progress || 0;
+
+    // 状态文字
+    let statusText = '待开始';
+    if (progress > 0 && progress < 100) statusText = `办理中 · 进度 ${progress}%`;
+    else if (progress >= 100) statusText = '已设立';
+
+    const regCapital = q4 ? (q4.includes('万') ? q4 : `${q4}万元`) : '';
+
+    return {
+      companyName,
+      statusText,
+      legalPerson: q8,
+      legalIdCardMask: maskIdCard(q9),
+      regCapital,
+      mainBusiness: q5,
+      companyType: q3,
+      registerAddress: (q11 && q12) ? `${q11}${q12}` : (q11 || q12 || ''),
+      setupDate: progress >= 100 ? '2026-06-17' : ''
+    };
+  }, [answers, tasks]);
+
+  // ============ 人员信息同步 ============
+  const memberList = useMemo(() => {
+    const q8 = getAns('q8'); // 法人姓名
+    const q9 = getAns('q9'); // 法人身份证
+    const q10 = getAns('q10'); // 是否有财务负责人
+    const q7 = getAns('q7'); // 股东人数
+
+    let newMembers = initialMemberList.map(m => {
+      const updated = { ...m };
+      if (m.role === 'legal' && q8) {
+        updated.name = q8;
+        updated.idCardMask = maskIdCard(q9) || '身份证待补充';
+        updated.infoCompleted = !!(q8 && q9);
+      }
+      if (m.role === 'finance') {
+        if (q10 === '暂时没有，后续补充') {
+          updated.infoCompleted = false;
+          updated.idCardMask = '待确定人员';
+        } else if (q10 === '由股东兼任') {
+          updated.idCardMask = '股东兼任';
+          updated.infoCompleted = true;
+        }
+      }
+      return updated;
+    });
+
+    // 如果股东人数多，添加股东占位
+    if (q7 && q7 !== '仅1人（独资）') {
+      const count = q7 === '2人' ? 1 : q7 === '3-5人' ? 3 : 5;
+      const existingShareholders = newMembers.filter(m => m.role === 'shareholder').length;
+      for (let i = existingShareholders; i < count; i++) {
+        newMembers.push({
+          id: `shareholder_extra_${i}`,
+          name: `股东${i + 2}`,
+          role: 'shareholder',
+          roleName: '股东',
+          avatar: 'G',
+          phone: '待补充',
+          idCardMask: '待上传身份证',
+          infoCompleted: false
+        });
+      }
+    }
+
+    return newMembers;
+  }, [answers]);
+
+  const completedMembers = memberList.filter(m => m.infoCompleted).length;
+
+  // ============ 其他 ============
   const handleInviteMember = (role: string) => {
     console.log('[EnterprisePage] 邀请成员:', role);
     Taro.showActionSheet({
@@ -107,8 +217,6 @@ const EnterprisePage: React.FC = () => {
     }
   };
 
-  const completedMembers = memberList.filter(m => m.infoCompleted).length;
-
   const settings = [
     { icon: '🔍', label: '申报摘要', desc: '查看已填写的所有信息', color: 'blue' },
     { icon: '❓', label: '常见问题', desc: '办事流程、材料要求等FAQ', color: 'purple' },
@@ -124,37 +232,67 @@ const EnterprisePage: React.FC = () => {
           <View className={styles.logo}>🏢</View>
           <View className={styles.enterpriseInfo}>
             <Text className={classnames(styles.enterpriseName, isElderlyMode && 'elderly-zoom-subtitle')}>
-              北京星辰科技有限公司
+              {enterpriseData.companyName || '企业名称（待填写）'}
             </Text>
-            <View className={styles.enterpriseStatus}>办理中 · 进度 33%</View>
+            <View className={styles.enterpriseStatus}>
+              {enterpriseData.statusText || '待开始 · 请先填写企业信息'}
+            </View>
           </View>
         </View>
         <View className={styles.infoGrid}>
           <View className={styles.infoItem}>
             <Text className={styles.infoLabel}>统一社会信用代码</Text>
             <Text className={classnames(styles.infoValue, isElderlyMode && 'elderly-zoom-small')}>
-              待生成
+              {enterpriseData.setupDate ? '91110105XXXXXXXXX' : '待设立生成'}
             </Text>
           </View>
           <View className={styles.infoItem}>
             <Text className={styles.infoLabel}>法定代表人</Text>
             <Text className={classnames(styles.infoValue, isElderlyMode && 'elderly-zoom-small')}>
-              张伟
+              {enterpriseData.legalPerson || '— 待填写 —'}
             </Text>
           </View>
           <View className={styles.infoItem}>
             <Text className={styles.infoLabel}>注册资本</Text>
             <Text className={classnames(styles.infoValue, isElderlyMode && 'elderly-zoom-small')}>
-              100万元
+              {enterpriseData.regCapital || '— 待填写 —'}
             </Text>
           </View>
           <View className={styles.infoItem}>
             <Text className={styles.infoLabel}>成立日期</Text>
             <Text className={classnames(styles.infoValue, isElderlyMode && 'elderly-zoom-small')}>
-              待设立
+              {enterpriseData.setupDate || '待设立'}
             </Text>
           </View>
         </View>
+        {(enterpriseData.companyType || enterpriseData.mainBusiness || enterpriseData.registerAddress) && (
+          <View className={styles.infoGrid} style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+            {enterpriseData.companyType && (
+              <View className={styles.infoItem}>
+                <Text className={styles.infoLabel}>企业类型</Text>
+                <Text className={classnames(styles.infoValue, isElderlyMode && 'elderly-zoom-small')}>
+                  {enterpriseData.companyType}
+                </Text>
+              </View>
+            )}
+            {enterpriseData.mainBusiness && (
+              <View className={styles.infoItem}>
+                <Text className={styles.infoLabel}>主营方向</Text>
+                <Text className={classnames(styles.infoValue, isElderlyMode && 'elderly-zoom-small')}>
+                  {enterpriseData.mainBusiness}
+                </Text>
+              </View>
+            )}
+            {enterpriseData.registerAddress && (
+              <View className={styles.infoItem} style={{ gridColumn: '1 / -1' }}>
+                <Text className={styles.infoLabel}>注册地址</Text>
+                <Text className={classnames(styles.infoValue, isElderlyMode && 'elderly-zoom-small')}>
+                  {enterpriseData.registerAddress}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       <View className={styles.sectionCard}>
