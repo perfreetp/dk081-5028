@@ -49,9 +49,9 @@ const EnterprisePage: React.FC = () => {
       companyName = `${region}${q1}${q2.includes('服务') ? '' : q2.slice(0, 2)}${suffix}`.replace(/信息技术服务/g, '科技').replace(/批发和零售/g, '商贸');
     }
 
-    // 进度：取license任务的进度
-    const licenseTask = tasks.find(t => t.id === 'task_license');
-    const progress = licenseTask?.progress || 0;
+    // 进度：取license任务的进度（按category查找更可靠）
+    const licenseTask = tasks.find(t => t.category === 'license');
+    const progress = licenseTask?.progress ?? 0;
 
     // 状态文字
     let statusText = '待开始';

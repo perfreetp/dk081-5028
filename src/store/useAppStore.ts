@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro';
 import { taskList as initialTaskList } from '@/data/tasks';
 import { materialList as initialMaterialList } from '@/data/materials';
 import { messageList as initialMessageList } from '@/data/messages';
+import { expandDynamicMaterials } from '@/utils/materialUtils';
 
 const STORAGE_KEY = 'yizhangtong_app_state_v1';
 
@@ -137,6 +138,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentTaskGuide: null,
   setCurrentTaskGuide: (task: TaskItem | null) => {
     set({ currentTaskGuide: task });
+  },
+
+  syncDynamicMaterials: (answers: Record<string, string | string[]>) => {
+    const state = get();
+    const existingById = new Map(state.materials.map(m => [m.id, m]));
+    const expanded = expandDynamicMaterials(initialMaterialList, answers);
+
+    const merged = expanded.map(newMat => {
+      const existing = existingById.get(newMat.id);
+      if (existing) {
+        return { ...newMat, status: existing.status, signed: existing.signed, uploadTime: existing.uploadTime, rejectReason: existing.rejectReason };
+      }
+      return newMat;
+    });
+
+    const changed = JSON.stringify(merged.map(m => ({ id: m.id, status: m.status }))) !==
+                    JSON.stringify(state.materials.map(m => ({ id: m.id, status: m.status })));
+
+    if (changed) {
+      set({ materials: merged });
+      saveToStorage(get());
+      console.log('[Store] 动态材料已同步，总数:', merged.length);
+    }
   },
 
   resetAll: () => {

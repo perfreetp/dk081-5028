@@ -127,6 +127,8 @@ export interface AppState {
   currentTaskGuide: TaskItem | null;
   setCurrentTaskGuide: (task: TaskItem | null) => void;
 
+  syncDynamicMaterials: (answers: Record<string, string | string[]>) => void;
+
   resetAll: () => void;
   hydrateFromStorage: () => void;
 }

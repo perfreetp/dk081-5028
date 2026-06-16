@@ -32,7 +32,8 @@ const AssistantPage: React.FC = () => {
     answers,
     setAnswer,
     materials,
-    hydrateFromStorage
+    hydrateFromStorage,
+    syncDynamicMaterials
   } = useAppStore();
 
   const [showSaveTip, setShowSaveTip] = useState(false);
@@ -41,6 +42,10 @@ const AssistantPage: React.FC = () => {
   useEffect(() => {
     hydrateFromStorage();
   }, []);
+
+  useEffect(() => {
+    syncDynamicMaterials(answers);
+  }, [answers, syncDynamicMaterials]);
 
   const handleSelectOption = (questionId: string, option: string, isMulti: boolean) => {
     if (isMulti) {
@@ -204,50 +209,41 @@ const AssistantPage: React.FC = () => {
     }));
     const materialsDoneCount = materialBriefs.filter(m => m.done).length;
 
-    // 4. 风险提醒
+    // 4. 风险提醒（仅针对已填写内容校验，缺失项在缺失区提示
     const risks: RiskItem[] = [];
 
-    // 注册资本风险
-    const capitalText = getAnswerText('q_capital');
-    if (capitalText) {
+    // 注册资本风险（仅当已填写时校验）
+    const capitalText = getAnswerText('q4');
+    if (capitalText && capitalText.trim()) {
       const num = parseFloat(capitalText.replace(/[^0-9.]/g, ''));
-      if (!isNaN(num)) {
+      if (!isNaN(num) && num > 0) {
         if (num < 10) {
           risks.push({
-            title: '注册资本偏低',
+            title: `注册资本 ${num} 万元偏低`,
             content: '建议小微企业注册资本填写 50-500 万，过低可能影响客户信任和投标资格。'
           });
         } else if (num > 5000) {
           risks.push({
-            title: '注册资本偏高',
-            content: '注册资本过高会增加印花税负担，且认缴需承担对应法律责任，请根据实际业务需求填写。'
+            title: `注册资本 ${num} 万元偏高`,
+            content: '注册资本过高会增加印花税（按万分之2.5缴纳），且认缴需承担对应法律责任，请根据实际业务需求填写。'
           });
         }
       }
     }
 
-    // 经营范围风险
-    const businessScope = getAnswerText('q_scope');
-    if (!businessScope) {
-      risks.push({
-        title: '经营范围未填写',
-        content: '经营范围第一项影响税种认定，请务必准确填写与主营业务相关的范围。'
-      });
-    }
-
-    // 法人身份证风险
-    const legalIdCard = getAnswerText('q_legal_idcard');
-    if (legalIdCard && legalIdCard.replace(/\D/g, '').length < 15) {
-      risks.push({
-        title: '法定代表人身份证号可能不完整',
-        content: '身份证号应为18位，请核对后重新填写。'
-      });
-    }
-
-    // 社保风险
-    const hasSocialOpt = (answers['q_social'] as string[]) || [];
-    if (!hasSocialOpt.includes('不办理社保') && materials.filter(m => m.category === 'social').length === 0) {
-      // 不强制
+    // 法人身份证风险（仅当已填写时校验）
+    const legalIdCard = getAnswerText('q9');
+    if (legalIdCard && legalIdCard.trim()) {
+      const digits = legalIdCard.replace(/\D/g, '');
+      if (digits.length !== 18) {
+        risks.push({
+          title: `身份证号位数不对（${digits.length}位）`,
+          content: `居民身份证号应为18位数字（含X），当前只输入了${digits.length}位，请核对。`
+        });
+      }
+      if (/^\d{17}[\dXx]$/.test(digits) === false && digits.length === 18) {
+        // 格式校验可按需开启
+      }
     }
 
     // 材料退回风险
@@ -265,6 +261,16 @@ const AssistantPage: React.FC = () => {
       risks.push({
         title: `有 ${needSignCount} 份材料需要签字盖章`,
         content: '未签字盖章的材料无法通过审核，请按指引完成签字后重新拍照上传。'
+      });
+    }
+
+    // 多个股东时的风险提示
+    const shareholderCount = getAnswerText('q7');
+    const companyType = getAnswerText('q3');
+    if (companyType?.includes('有限责任') && shareholderCount === '仅1人（独资）') {
+      risks.push({
+        title: '自然人独资企业提示',
+        content: '一人有限责任公司每年需审计且股东需证明个人财产独立于公司财产，建议考虑增加少量股份给家人。'
       });
     }
 
