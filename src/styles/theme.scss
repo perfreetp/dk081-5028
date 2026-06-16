@@ -1,0 +1,46 @@
+// ============================================
+// 主题配色变量 - 企业开办一窗通
+// ============================================
+
+// 品牌主题色：政务蓝，传递信任感和专业性
+$color-primary: #1677ff;
+$color-primary-light: #4096ff;
+$color-primary-dark: #0958d9;
+$color-primary-soft: #e6f4ff;
+$color-primary-bg: #f0f5ff;
+
+// 功能色
+$color-success: #52c41a;
+$color-success-soft: #f6ffed;
+$color-warning: #fa8c16;
+$color-warning-soft: #fff7e6;
+$color-error: #ff4d4f;
+$color-error-soft: #fff2f0;
+$color-info: #1677ff;
+$color-purple: #722ed1;
+$color-purple-soft: #f9f0ff;
+
+// 背景色
+$color-bg-page: #f5f7fa;
+$color-bg-card: #ffffff;
+$color-bg-hover: #f2f3f5;
+$color-bg-section: #f0f5ff;
+
+// 文本色
+$color-text-primary: #1f2937;
+$color-text-secondary: #4b5563;
+$color-text-tertiary: #9ca3af;
+$color-text-disabled: #d1d5db;
+$color-text-white: #ffffff;
+
+// 边框色
+$color-border: #e5e7eb;
+$color-divider: #f3f4f6;
+
+// 进度状态色
+$color-progress-done: #52c41a;
+$color-progress-active: #1677ff;
+$color-progress-pending: #9ca3af;
+
+// 适老化大字模式放大系数相关色值（保持与原色一致，字号由样式控制）
+$color-elderly-primary: #0958d9;

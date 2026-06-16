@@ -1,0 +1,40 @@
+@use '@/styles/compat.scss';
+@use '@/styles/variables.scss' as *;
+
+page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  font-size: $font-size-md;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  background: linear-gradient(180deg, $color-primary-bg 0%, $color-bg-page 30%);
+  min-height: 100vh;
+}
+
+page.elderly-mode {
+  font-size: 32rpx;
+
+  .elderly-zoom {
+    &-title {
+      font-size: 48rpx !important;
+    }
+    &-subtitle {
+      font-size: 36rpx !important;
+    }
+    &-text {
+      font-size: 32rpx !important;
+    }
+    &-small {
+      font-size: 28rpx !important;
+    }
+  }
+}
+
+view, text {
+  box-sizing: border-box;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+

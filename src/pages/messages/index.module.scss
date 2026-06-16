@@ -1,0 +1,320 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  padding: $spacing-md $page-padding $spacing-xl;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 32rpx);
+}
+
+.tabBar {
+  display: flex;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: 6rpx;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.tabItem {
+  flex: 1;
+  padding: 16rpx 0;
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  text-align: center;
+  border-radius: $radius-md;
+  transition: all $transition-base;
+  position: relative;
+
+  &.active {
+    background: $color-primary;
+    color: $color-text-white;
+    font-weight: $font-weight-medium;
+    box-shadow: 0 4rpx 12rpx rgba($color-primary, 0.25);
+  }
+}
+
+.unreadBadge {
+  position: absolute;
+  top: 4rpx;
+  right: 20%;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  background: $color-error;
+  color: $color-text-white;
+  border-radius: $radius-round;
+  font-size: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.timelineCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-xl $spacing-lg;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-lg;
+}
+
+.cardTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.overallProgress {
+  font-size: $font-size-sm;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 40rpx;
+}
+
+.timelineLine {
+  position: absolute;
+  left: 15rpx;
+  top: 8rpx;
+  bottom: 8rpx;
+  width: 4rpx;
+  background: linear-gradient(180deg, $color-success 0%, $color-primary 40%, $color-divider 40%);
+  border-radius: $radius-round;
+}
+
+.timelineItem {
+  position: relative;
+  padding-bottom: $spacing-lg;
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+}
+
+.timelineDot {
+  position: absolute;
+  left: -32rpx;
+  top: 6rpx;
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: $radius-round;
+  background: $color-bg-card;
+  border: 4rpx solid $color-divider;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .done & {
+    background: $color-success;
+    border-color: $color-success;
+
+    &::after {
+      content: '✓';
+      color: $color-text-white;
+      font-size: 18rpx;
+      font-weight: bold;
+    }
+  }
+
+  .active & {
+    background: $color-bg-card;
+    border-color: $color-primary;
+    box-shadow: 0 0 0 8rpx rgba($color-primary, 0.15);
+
+    &::after {
+      content: '';
+      width: 14rpx;
+      height: 14rpx;
+      background: $color-primary;
+      border-radius: $radius-round;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+}
+
+.timelineContent {
+  padding-left: $spacing-sm;
+}
+
+.timelineTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  margin-bottom: 4rpx;
+
+  .pending & {
+    color: $color-text-tertiary;
+  }
+}
+
+.timelineTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-xs;
+}
+
+.timelineDesc {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: 1.5;
+  background: $color-bg-page;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $radius-md;
+  margin-top: $spacing-xs;
+
+  .active & {
+    background: $color-primary-soft;
+    color: $color-primary-dark;
+  }
+
+  .pending & {
+    display: none;
+  }
+}
+
+.reminderCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+}
+
+.reminderItem {
+  display: flex;
+  align-items: flex-start;
+  padding: $spacing-md 0;
+
+  &:not(:last-child) {
+    border-bottom: 1rpx solid $color-divider;
+  }
+}
+
+.reminderIcon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+
+  &.seal { background: $color-primary-soft; }
+  &.tax { background: $color-success-soft; }
+  &.bank { background: $color-purple-soft; }
+  &.social { background: $color-warning-soft; }
+}
+
+.reminderBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.reminderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4rpx;
+}
+
+.reminderTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  @include text-ellipsis;
+  flex: 1;
+}
+
+.reminderDate {
+  font-size: $font-size-xs;
+  color: $color-warning;
+  white-space: nowrap;
+  margin-left: $spacing-sm;
+}
+
+.reminderDesc {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: 1.5;
+  @include text-ellipsis-multi(2);
+}
+
+.reminderCheck {
+  width: 44rpx;
+  height: 44rpx;
+  border: 3rpx solid $color-border;
+  border-radius: $radius-round;
+  margin-left: $spacing-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &.checked {
+    background: $color-success;
+    border-color: $color-success;
+    color: $color-text-white;
+    font-size: 24rpx;
+  }
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: $spacing-lg 0 $spacing-md;
+}
+
+.sectionTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.markAllRead {
+  font-size: $font-size-sm;
+  color: $color-primary;
+}
+
+.emptyTip {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-xl * 2;
+  text-align: center;
+  box-shadow: $shadow-card;
+
+  .icon {
+    font-size: 100rpx;
+    margin-bottom: $spacing-md;
+  }
+
+  .title {
+    font-size: $font-size-lg;
+    color: $color-text-primary;
+    font-weight: $font-weight-medium;
+    margin-bottom: $spacing-xs;
+  }
+
+  .text {
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    line-height: 1.6;
+  }
+}

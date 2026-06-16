@@ -1,0 +1,383 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  padding: $spacing-md $page-padding $spacing-xl;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 32rpx);
+}
+
+.enterpriseCard {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-xl;
+  padding: $spacing-xl;
+  color: $color-text-white;
+  margin-bottom: $spacing-lg;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8rpx 24rpx rgba($color-primary, 0.3);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -80rpx;
+    right: -80rpx;
+    width: 280rpx;
+    height: 280rpx;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: $radius-round;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -60rpx;
+    left: -60rpx;
+    width: 200rpx;
+    height: 200rpx;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: $radius-round;
+  }
+}
+
+.enterpriseHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: $spacing-lg;
+  position: relative;
+  z-index: 1;
+}
+
+.logo {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: $radius-md;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44rpx;
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+}
+
+.enterpriseInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.enterpriseName {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  margin-bottom: 4rpx;
+  @include text-ellipsis;
+}
+
+.enterpriseStatus {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: $radius-button;
+  font-size: $font-size-xs;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-md;
+  position: relative;
+  z-index: 1;
+}
+
+.infoItem {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: $radius-md;
+  padding: $spacing-md;
+}
+
+.infoLabel {
+  font-size: $font-size-xs;
+  opacity: 0.8;
+  margin-bottom: 4rpx;
+}
+
+.infoValue {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  @include text-ellipsis;
+}
+
+.sectionCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.sectionTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  display: flex;
+  align-items: center;
+}
+
+.sectionIcon {
+  margin-right: $spacing-xs;
+  font-size: $font-size-lg;
+}
+
+.sectionAction {
+  font-size: $font-size-sm;
+  color: $color-primary;
+}
+
+.memberList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.memberItem {
+  display: flex;
+  align-items: center;
+  padding: $spacing-sm 0;
+
+  &:not(:last-child) {
+    border-bottom: 1rpx solid $color-divider;
+    padding-bottom: $spacing-md;
+  }
+}
+
+.memberAvatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-white;
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+
+  &.legal { background: linear-gradient(135deg, $color-primary, $color-primary-light); }
+  &.shareholder { background: linear-gradient(135deg, $color-purple, #9254de); }
+  &.finance { background: linear-gradient(135deg, $color-success, #73d13d); }
+  &.other { background: linear-gradient(135deg, $color-warning, #ffc53d); }
+}
+
+.memberInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.memberHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4rpx;
+}
+
+.memberName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.memberStatus {
+  font-size: $font-size-xs;
+  padding: 2rpx 12rpx;
+  border-radius: $radius-sm;
+
+  &.completed {
+    background: $color-success-soft;
+    color: $color-success;
+  }
+
+  &.pending {
+    background: $color-warning-soft;
+    color: $color-warning;
+  }
+}
+
+.memberRole {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  margin-bottom: 2rpx;
+}
+
+.memberPhone {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.inviteBtn {
+  @include button-reset;
+  width: 100%;
+  height: $button-height-md;
+  background: $color-primary-soft;
+  color: $color-primary;
+  border-radius: $radius-button;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  margin-top: $spacing-md;
+
+  &:active {
+    background: rgba($color-primary, 0.15);
+  }
+}
+
+.licenseList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.licenseItem {
+  display: flex;
+  align-items: center;
+  padding: $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.99);
+  }
+}
+
+.licenseIcon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: $radius-md;
+  background: $color-primary-soft;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+}
+
+.licenseInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.licenseName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  margin-bottom: 4rpx;
+  @include text-ellipsis;
+}
+
+.licenseMeta {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.licenseArrow {
+  color: $color-text-tertiary;
+  font-size: $font-size-lg;
+  margin-left: $spacing-sm;
+}
+
+.settingsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.settingItem {
+  display: flex;
+  align-items: center;
+  padding: $spacing-md 0;
+
+  &:not(:last-child) {
+    border-bottom: 1rpx solid $color-divider;
+  }
+
+  &:active {
+    background: rgba($color-primary, 0.02);
+  }
+}
+
+.settingIcon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+
+  &.blue { background: $color-primary-soft; }
+  &.green { background: $color-success-soft; }
+  &.orange { background: $color-warning-soft; }
+  &.purple { background: $color-purple-soft; }
+  &.gray { background: rgba($color-text-tertiary, 0.1); }
+}
+
+.settingContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.settingLabel {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  margin-bottom: 2rpx;
+}
+
+.settingDesc {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.settingArrow {
+  color: $color-text-tertiary;
+  font-size: $font-size-lg;
+  margin-left: $spacing-sm;
+}
+
+.switchWrap {
+  width: 88rpx;
+  height: 48rpx;
+  background: $color-border;
+  border-radius: $radius-round;
+  position: relative;
+  transition: all $transition-base;
+  margin-left: $spacing-md;
+  flex-shrink: 0;
+
+  &.active {
+    background: $color-primary;
+  }
+}
+
+.switchDot {
+  position: absolute;
+  top: 4rpx;
+  left: 4rpx;
+  width: 40rpx;
+  height: 40rpx;
+  background: $color-text-white;
+  border-radius: $radius-round;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.15);
+  transition: all $transition-base;
+
+  .active & {
+    left: 44rpx;
+  }
+}

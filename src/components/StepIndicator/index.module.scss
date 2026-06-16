@@ -1,0 +1,91 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+  padding: $spacing-sm 0;
+}
+
+.stepItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+
+  &:last-child {
+    flex: none;
+    width: auto;
+  }
+
+  &:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 20rpx;
+    left: 60%;
+    right: -40%;
+    height: 4rpx;
+    background: $color-divider;
+    z-index: 0;
+  }
+
+  &.done:not(:last-child)::after {
+    background: $color-success;
+  }
+
+  &.active:not(:last-child)::after {
+    background: linear-gradient(90deg, $color-primary 50%, $color-divider 50%);
+  }
+}
+
+.stepCircle {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  margin-bottom: $spacing-xs;
+  position: relative;
+  z-index: 1;
+  background: $color-bg-card;
+  border: 3rpx solid $color-border;
+  color: $color-text-tertiary;
+  transition: all $transition-base;
+}
+
+.done .stepCircle {
+  background: $color-success;
+  border-color: $color-success;
+  color: $color-text-white;
+}
+
+.active .stepCircle {
+  background: $color-primary;
+  border-color: $color-primary;
+  color: $color-text-white;
+  box-shadow: 0 0 0 8rpx rgba($color-primary, 0.15);
+}
+
+.stepLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  text-align: center;
+  line-height: 1.4;
+  padding: 0 $spacing-xs;
+  @include text-ellipsis;
+  width: 100%;
+}
+
+.done .stepLabel {
+  color: $color-success;
+}
+
+.active .stepLabel {
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
