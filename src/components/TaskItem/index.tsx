@@ -57,13 +57,20 @@ const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
         {task.description}
       </Text>
       <View className={styles.bottomRow}>
-        <View className={styles.progressWrap}>
-          <View className={styles.progressBar}>
-            <View className={styles.progressFill} style={{ width: `${task.progress}%` }} />
+        {task.status === 'completed' ? (
+          <View className={styles.completedBadge}>
+            <Text className={styles.completedIcon}>✓</Text>
+            <Text className={styles.completedText}>已完成</Text>
           </View>
-          <Text className={styles.progressText}>{task.progress}%</Text>
-        </View>
-        {task.deadline && <Text className={styles.deadline}>截止 {task.deadline}</Text>}
+        ) : (
+          <View className={styles.progressWrap}>
+            <View className={styles.progressBar}>
+              <View className={styles.progressFill} style={{ width: `${task.progress}%` }} />
+            </View>
+            <Text className={styles.progressText}>{task.progress}%</Text>
+          </View>
+        )}
+        {task.status !== 'completed' && task.deadline && <Text className={styles.deadline}>截止 {task.deadline}</Text>}
         <Button className={styles.actionBtn} onClick={handleAction}>
           {actionText[task.status]}
         </Button>

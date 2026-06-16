@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppState, MaterialItem, TaskItem, MessageItem } from '@/types';
+import { AppState, MaterialItem, TaskItem, MessageItem, EnterpriseInfo } from '@/types';
 import Taro from '@tarojs/taro';
 import { taskList as initialTaskList } from '@/data/tasks';
 import { materialList as initialMaterialList } from '@/data/materials';
@@ -15,6 +15,7 @@ interface PersistState {
   materials: MaterialItem[];
   tasks: TaskItem[];
   messages: MessageItem[];
+  enterpriseInfo: EnterpriseInfo;
 }
 
 const loadFromStorage = (): Partial<PersistState> => {
@@ -38,7 +39,8 @@ const saveToStorage = (state: PersistState) => {
       answers: state.answers,
       materials: state.materials,
       tasks: state.tasks,
-      messages: state.messages
+      messages: state.messages,
+      enterpriseInfo: state.enterpriseInfo
     };
     Taro.setStorageSync(STORAGE_KEY, JSON.stringify(persistData));
     console.log('[Store] 状态已保存到本地存储');
@@ -50,6 +52,15 @@ const saveToStorage = (state: PersistState) => {
 const stored = loadFromStorage();
 
 export const useAppStore = create<AppState>((set, get) => ({
+  enterpriseInfo: stored.enterpriseInfo ?? {},
+  updateEnterpriseInfo: (info: Partial<EnterpriseInfo>) => {
+    set((state) => ({
+      enterpriseInfo: { ...state.enterpriseInfo, ...info }
+    }));
+    saveToStorage(get());
+    console.log('[Store] 企业信息已更新:', info);
+  },
+
   isElderlyMode: stored.isElderlyMode ?? false,
   toggleElderlyMode: () => {
     const newValue = !get().isElderlyMode;
@@ -74,23 +85,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   materials: initialMaterialList.map(im => {
     const existed = stored.materials?.find(sm => sm.id === im.id);
     return existed
-      ? { ...im, status: existed.status, signed: existed.signed, uploadTime: existed.uploadTime, rejectReason: existed.rejectReason }
+      ? { ...im, status: existed.status, signed: existed.signed, uploadTime: existed.uploadTime, rejectReason: existed.rejectReason, submitTime: existed.submitTime }
       : im;
   }),
-  updateMaterialStatus: (materialId: string, status: MaterialItem['status'], signed?: boolean) => {
+  updateMaterialStatus: (materialId: string, status: MaterialItem['status'], signed?: boolean, options?: { rejectReason?: string }) => {
     set((state) => ({
       materials: state.materials.map(m => {
         if (m.id === materialId) {
           const now = new Date();
           const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
           const shouldClearReject = status !== 'rejected';
-          const shouldUpdateTime = status === 'uploaded' || status === 'need_sign';
+          const shouldUpdateUploadTime = status === 'uploaded' || status === 'need_sign';
+          const shouldUpdateSubmitTime = status === 'in_review';
           return {
             ...m,
             status,
             signed: signed !== undefined ? signed : m.signed,
-            uploadTime: shouldUpdateTime ? timeStr : m.uploadTime,
-            rejectReason: shouldClearReject ? undefined : m.rejectReason
+            uploadTime: shouldUpdateUploadTime ? timeStr : m.uploadTime,
+            submitTime: shouldUpdateSubmitTime ? timeStr : m.submitTime,
+            rejectReason: options?.rejectReason ?? (shouldClearReject ? undefined : m.rejectReason)
           };
         }
         return m;
@@ -99,12 +112,74 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveToStorage(get());
     console.log('[Store] 材料状态已更新:', materialId, status);
   },
+  submitMaterialsForReview: () => {
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    set((state) => ({
+      materials: state.materials.map(m => {
+        if (m.status === 'uploaded' || m.status === 'need_sign' || m.status === 'verified') {
+          return { ...m, status: 'in_review' as const, submitTime: timeStr };
+        }
+        return m;
+      })
+    }));
+
+    const state = get();
+    const submittedCount = state.materials.filter(m => m.status === 'in_review').length;
+    if (submittedCount > 0) {
+      const newMsg = {
+        id: `msg_progress_${Date.now()}`,
+        title: '材料已提交审核',
+        content: `您已提交 ${submittedCount} 份材料进入审核，通常1-2个工作日内完成审核。`,
+        type: 'progress' as const,
+        time: timeStr,
+        read: false,
+        actionText: '查看审核进度',
+        actionPage: '/pages/messages/index'
+      };
+      set(s => ({ messages: [newMsg, ...s.messages] }));
+    }
+    saveToStorage(get());
+    console.log('[Store] 材料已提交审核');
+    return submittedCount;
+  },
+  rejectMaterial: (materialId: string, reason: string) => {
+    const state = get();
+    const material = state.materials.find(m => m.id === materialId);
+    if (!material) return;
+
+    set(s => ({
+      materials: s.materials.map(m =>
+        m.id === materialId
+          ? { ...m, status: 'rejected' as const, rejectReason: reason }
+          : m
+      )
+    }));
+
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const newMsg = {
+      id: `msg_reject_${Date.now()}`,
+      title: '材料审核未通过',
+      content: `【${material.name}】${reason}`,
+      type: 'reject' as const,
+      time: timeStr,
+      read: false,
+      actionText: '重新上传',
+      actionPage: '/pages/materials/index'
+    };
+
+    set(s => ({ messages: [newMsg, ...s.messages] }));
+    saveToStorage(get());
+    console.log('[Store] 材料已退回:', materialId, reason);
+  },
 
   tasks: stored.tasks ?? initialTaskList,
-  updateTaskProgress: (taskId: string, progress: number, status?: TaskItem['status']) => {
+  updateTaskProgress: (taskIdOrCategory: string, progress: number, status?: TaskItem['status']) => {
     set((state) => ({
       tasks: state.tasks.map(t => {
-        if (t.id === taskId) {
+        if (t.id === taskIdOrCategory || t.category === taskIdOrCategory) {
           return {
             ...t,
             progress,
@@ -115,7 +190,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       })
     }));
     saveToStorage(get());
-    console.log('[Store] 任务进度已更新:', taskId, progress, status);
+    console.log('[Store] 任务进度已更新:', taskIdOrCategory, progress, status);
   },
 
   messages: stored.messages ?? initialMessageList,
@@ -170,6 +245,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error('[Store] 清除本地存储失败:', e);
     }
     set({
+      enterpriseInfo: {},
       isElderlyMode: false,
       currentQuestionGroupIndex: 0,
       answers: {},
@@ -185,6 +261,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const storedData = loadFromStorage();
     if (Object.keys(storedData).length > 0) {
       set({
+        enterpriseInfo: storedData.enterpriseInfo ?? {},
         isElderlyMode: storedData.isElderlyMode ?? false,
         currentQuestionGroupIndex: storedData.currentQuestionGroupIndex ?? 0,
         answers: storedData.answers ?? {},

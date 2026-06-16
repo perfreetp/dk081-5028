@@ -41,12 +41,13 @@ export interface MaterialItem {
   name: string;
   category: 'identity' | 'site' | 'auth' | 'other';
   categoryName: string;
-  status: 'not_uploaded' | 'uploaded' | 'need_sign' | 'verified' | 'rejected';
+  status: 'not_uploaded' | 'uploaded' | 'need_sign' | 'verified' | 'rejected' | 'in_review';
   needSign: boolean;
   signed: boolean;
   pages: number;
   uploadTime?: string;
   rejectReason?: string;
+  submitTime?: string;
   conditions?: DisplayCondition[];
   dynamicSuffix?: string;
 }
@@ -61,6 +62,8 @@ export interface MessageItem {
   read: boolean;
   actionText?: string;
   actionPage?: string;
+  category?: 'license' | 'invoice' | 'social' | 'tax' | 'bank' | 'materials';
+  relatedTaskId?: string;
 }
 
 export interface TimelineItem {
@@ -105,7 +108,16 @@ export interface ConceptItem {
   content: string;
 }
 
+export interface EnterpriseInfo {
+  name?: string;
+  creditCode?: string;
+  establishDate?: string;
+  hasElicense?: boolean;
+}
+
 export interface AppState {
+  enterpriseInfo: EnterpriseInfo;
+  updateEnterpriseInfo: (info: Partial<EnterpriseInfo>) => void;
   isElderlyMode: boolean;
   toggleElderlyMode: () => void;
 
@@ -115,7 +127,9 @@ export interface AppState {
   setAnswer: (questionId: string, value: string | string[]) => void;
 
   materials: MaterialItem[];
-  updateMaterialStatus: (materialId: string, status: MaterialItem['status'], signed?: boolean) => void;
+  updateMaterialStatus: (materialId: string, status: MaterialItem['status'], signed?: boolean, options?: { rejectReason?: string }) => void;
+  submitMaterialsForReview: () => number;
+  rejectMaterial: (materialId: string, reason: string) => void;
 
   tasks: TaskItem[];
   updateTaskProgress: (taskId: string, progress: number, status?: TaskItem['status']) => void;

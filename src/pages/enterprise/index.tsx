@@ -13,7 +13,7 @@ const maskIdCard = (id: string): string => {
 };
 
 const EnterprisePage: React.FC = () => {
-  const { isElderlyMode, toggleElderlyMode, resetAll, hydrateFromStorage, answers, tasks } = useAppStore();
+  const { isElderlyMode, toggleElderlyMode, resetAll, hydrateFromStorage, answers, tasks, enterpriseInfo } = useAppStore();
 
   React.useEffect(() => {
     hydrateFromStorage();
@@ -60,8 +60,13 @@ const EnterprisePage: React.FC = () => {
 
     const regCapital = q4 ? (q4.includes('万') ? q4 : `${q4}万元`) : '';
 
+    // 优先使用 enterpriseInfo 中的办结数据
+    const finalName = enterpriseInfo?.name || companyName;
+    const finalCreditCode = enterpriseInfo?.creditCode || (progress >= 100 ? '91110105XXXXXXXXX' : '');
+    const finalSetupDate = enterpriseInfo?.establishDate || (progress >= 100 ? '2026-06-17' : '');
+
     return {
-      companyName,
+      companyName: finalName,
       statusText,
       legalPerson: q8,
       legalIdCardMask: maskIdCard(q9),
@@ -69,9 +74,11 @@ const EnterprisePage: React.FC = () => {
       mainBusiness: q5,
       companyType: q3,
       registerAddress: (q11 && q12) ? `${q11}${q12}` : (q11 || q12 || ''),
-      setupDate: progress >= 100 ? '2026-06-17' : ''
+      setupDate: finalSetupDate,
+      creditCode: finalCreditCode,
+      hasElicense: !!enterpriseInfo?.hasElicense
     };
-  }, [answers, tasks]);
+  }, [answers, tasks, enterpriseInfo]);
 
   // ============ 人员信息同步 ============
   const memberList = useMemo(() => {
@@ -243,7 +250,7 @@ const EnterprisePage: React.FC = () => {
           <View className={styles.infoItem}>
             <Text className={styles.infoLabel}>统一社会信用代码</Text>
             <Text className={classnames(styles.infoValue, isElderlyMode && 'elderly-zoom-small')}>
-              {enterpriseData.setupDate ? '91110105XXXXXXXXX' : '待设立生成'}
+              {enterpriseData.creditCode || '待设立生成'}
             </Text>
           </View>
           <View className={styles.infoItem}>
@@ -344,6 +351,24 @@ const EnterprisePage: React.FC = () => {
           </Text>
         </View>
         <View className={styles.licenseList}>
+          {enterpriseData.hasElicense && (
+            <View
+              key="elicense"
+              className={styles.licenseItem}
+              onClick={() => handleViewLicense('电子营业执照')}
+            >
+              <View className={styles.licenseIcon}>🪪</View>
+              <View className={styles.licenseInfo}>
+                <Text className={classnames(styles.licenseName, isElderlyMode && 'elderly-zoom-text')}>
+                  电子营业执照
+                </Text>
+                <Text className={styles.licenseMeta}>
+                  市场监管总局核发 · 长期有效
+                </Text>
+              </View>
+              <Text className={styles.licenseArrow}>›</Text>
+            </View>
+          )}
           {licenseList.map(license => (
             <View
               key={license.id}

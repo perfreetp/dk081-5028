@@ -79,6 +79,11 @@
   color: $color-error;
 }
 
+.in_review {
+  background: linear-gradient(135deg, $color-purple-soft 0%, $color-primary-soft 100%);
+  color: $color-purple;
+}
+
 .metaRow {
   display: flex;
   align-items: center;

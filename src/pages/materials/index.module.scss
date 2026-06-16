@@ -33,8 +33,8 @@
 
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: $spacing-sm;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8rpx;
 }
 
 .statItem {
@@ -50,6 +50,7 @@
   margin-bottom: 4rpx;
 
   &.verified { color: $color-success; }
+  &.inReview { color: $color-purple; }
   &.uploaded { color: $color-primary; }
   &.needSign { color: $color-warning; }
   &.pending { color: $color-text-tertiary; }

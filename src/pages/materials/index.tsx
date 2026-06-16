@@ -9,7 +9,7 @@ import classnames from 'classnames';
 type CategoryType = 'all' | 'identity' | 'site' | 'auth' | 'other';
 
 const MaterialsPage: React.FC = () => {
-  const { isElderlyMode, materials, hydrateFromStorage, answers, syncDynamicMaterials } = useAppStore();
+  const { isElderlyMode, materials, hydrateFromStorage, answers, syncDynamicMaterials, submitMaterialsForReview } = useAppStore();
   const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
 
   useEffect(() => {
@@ -25,8 +25,9 @@ const MaterialsPage: React.FC = () => {
   const stats = useMemo(() => {
     return {
       verified: displayedMaterials.filter(m => m.status === 'verified').length,
-      uploaded: displayedMaterials.filter(m => m.status === 'uploaded' || m.status === 'need_sign').length,
-      needSign: displayedMaterials.filter(m => m.status === 'need_sign' || (m.needSign && !m.signed && m.status === 'uploaded')).length,
+      inReview: displayedMaterials.filter(m => m.status === 'in_review').length,
+      uploaded: displayedMaterials.filter(m => m.status === 'uploaded' || m.status === 'need_sign' || m.status === 'in_review').length,
+      needSign: displayedMaterials.filter(m => m.status === 'need_sign' || (m.needSign && !m.signed && (m.status === 'uploaded' || m.status === 'in_review'))).length,
       pending: displayedMaterials.filter(m => m.status === 'not_uploaded').length,
       rejected: displayedMaterials.filter(m => m.status === 'rejected').length,
       total: displayedMaterials.length
@@ -79,8 +80,20 @@ const MaterialsPage: React.FC = () => {
 
   const handleSubmitAll = () => {
     console.log('[MaterialsPage] 提交所有材料');
-    const readyCount = stats.verified + stats.uploaded;
+    const alreadySubmitted = stats.inReview;
+    const readyCount = stats.verified + stats.uploaded - alreadySubmitted;
     const notReadyCount = stats.pending + stats.needSign;
+
+    if (readyCount === 0 && alreadySubmitted === 0) {
+      Taro.showToast({ title: '没有可提交的材料，请先上传', icon: 'none' });
+      return;
+    }
+
+    if (alreadySubmitted > 0 && readyCount === 0) {
+      Taro.showToast({ title: '材料已在审核中', icon: 'none' });
+      return;
+    }
+
     if (notReadyCount > 0) {
       Taro.showModal({
         title: '有材料尚未准备好',
@@ -92,8 +105,8 @@ const MaterialsPage: React.FC = () => {
             Taro.showLoading({ title: '提交中...' });
             setTimeout(() => {
               Taro.hideLoading();
-              Taro.showToast({ title: '已提交审核', icon: 'success' });
-              Taro.switchTab({ url: '/pages/messages/index' });
+              const submittedCount = submitMaterialsForReview();
+              Taro.showToast({ title: `已提交${submittedCount}份材料`, icon: 'success' });
             }, 1000);
           }
         }
@@ -102,7 +115,8 @@ const MaterialsPage: React.FC = () => {
       Taro.showLoading({ title: '提交中...' });
       setTimeout(() => {
         Taro.hideLoading();
-        Taro.showToast({ title: '材料已提交', icon: 'success' });
+        const submittedCount = submitMaterialsForReview();
+        Taro.showToast({ title: `已提交${submittedCount}份材料`, icon: 'success' });
       }, 1000);
     }
   };
@@ -134,6 +148,10 @@ const MaterialsPage: React.FC = () => {
           <View className={styles.statItem}>
             <Text className={classnames(styles.statNum, styles.verified)}>{stats.verified}</Text>
             <Text className={styles.statLabel}>已核验</Text>
+          </View>
+          <View className={styles.statItem}>
+            <Text className={classnames(styles.statNum, styles.inReview)}>{stats.inReview}</Text>
+            <Text className={styles.statLabel}>审核中</Text>
           </View>
           <View className={styles.statItem}>
             <Text className={classnames(styles.statNum, styles.uploaded)}>{stats.uploaded}</Text>

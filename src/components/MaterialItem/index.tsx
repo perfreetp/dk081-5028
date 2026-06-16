@@ -19,10 +19,11 @@ const MaterialItem: React.FC<MaterialItemProps> = ({ material }) => {
     uploaded: '已上传',
     need_sign: '待签字',
     verified: '核验通过',
-    rejected: '被退回'
+    rejected: '被退回',
+    in_review: '审核中'
   };
 
-  const doUpload = (onComplete?: () => void) => {
+  const doUpload = (onComplete?: () => void, targetStatus?: MaterialItemType['status']) => {
     Taro.chooseImage({
       count: 9,
       sizeType: ['compressed'],
@@ -32,7 +33,14 @@ const MaterialItem: React.FC<MaterialItemProps> = ({ material }) => {
         Taro.showLoading({ title: '上传中...' });
         setTimeout(() => {
           Taro.hideLoading();
-          const newStatus = material.needSign ? 'need_sign' : 'uploaded';
+          let newStatus: MaterialItemType['status'];
+          if (targetStatus) {
+            newStatus = targetStatus;
+          } else if (material.status === 'rejected' || material.status === 'in_review') {
+            newStatus = 'in_review';
+          } else {
+            newStatus = material.needSign ? 'need_sign' : 'uploaded';
+          }
           updateMaterialStatus(material.id, newStatus);
           Taro.showToast({ title: '上传成功', icon: 'success' });
           if (onComplete) onComplete();
@@ -53,7 +61,7 @@ const MaterialItem: React.FC<MaterialItemProps> = ({ material }) => {
     console.log('[MaterialItem] 重新上传被退回材料:', material.id);
     doUpload(() => {
       Taro.showToast({ title: '已重新提交审核', icon: 'success' });
-    });
+    }, 'in_review');
   };
 
   const handleFix = () => {
@@ -109,7 +117,10 @@ const MaterialItem: React.FC<MaterialItemProps> = ({ material }) => {
 
       <View className={styles.metaRow}>
         <View className={styles.metaItem}>共 {material.pages} 页</View>
-        {material.uploadTime && (
+        {material.submitTime && material.status === 'in_review' && (
+          <View className={styles.metaItem}>提交于 {material.submitTime}</View>
+        )}
+        {material.uploadTime && material.status !== 'in_review' && (
           <View className={styles.metaItem}>上传于 {material.uploadTime}</View>
         )}
         {material.needSign && (
@@ -148,6 +159,16 @@ const MaterialItem: React.FC<MaterialItemProps> = ({ material }) => {
           <Button className={classnames(styles.actionBtn, styles.primary)} onClick={handleSign}>
             ✍ 签字指引
           </Button>
+        )}
+        {material.status === 'in_review' && (
+          <>
+            <Button className={classnames(styles.actionBtn, styles.outline)} onClick={handleFix}>
+              预览
+            </Button>
+            <Button className={classnames(styles.actionBtn, styles.primary)} onClick={handleReupload}>
+              补充/替换
+            </Button>
+          </>
         )}
         {(material.status === 'uploaded' || material.status === 'verified') && (
           <>

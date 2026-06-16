@@ -5,7 +5,8 @@ export default defineAppConfig({
     'pages/materials/index',
     'pages/messages/index',
     'pages/enterprise/index',
-    'pages/task-guide/index'
+    'pages/task-guide/index',
+    'pages/submit-package/index'
   ],
   window: {
     backgroundTextStyle: 'light',

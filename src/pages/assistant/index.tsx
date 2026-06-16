@@ -205,7 +205,7 @@ const AssistantPage: React.FC = () => {
     const materialBriefs: MaterialBrief[] = materials.map(m => ({
       id: m.id,
       name: m.name,
-      done: m.status === 'uploaded' || m.status === 'verified' || m.status === 'need_sign'
+      done: m.status === 'uploaded' || m.status === 'verified' || m.status === 'need_sign' || m.status === 'in_review'
     }));
     const materialsDoneCount = materialBriefs.filter(m => m.done).length;
 
@@ -216,8 +216,13 @@ const AssistantPage: React.FC = () => {
     const capitalText = getAnswerText('q4');
     if (capitalText && capitalText.trim()) {
       const num = parseFloat(capitalText.replace(/[^0-9.]/g, ''));
-      if (!isNaN(num) && num > 0) {
-        if (num < 10) {
+      if (!isNaN(num)) {
+        if (num === 0) {
+          risks.push({
+            title: '注册资本不能为0',
+            content: '注册资本不能为0，请根据企业实际经营情况填写。即使是认缴制，也需要填写一个具体金额。'
+          });
+        } else if (num < 10) {
           risks.push({
             title: `注册资本 ${num} 万元偏低`,
             content: '建议小微企业注册资本填写 50-500 万，过低可能影响客户信任和投标资格。'
@@ -234,16 +239,22 @@ const AssistantPage: React.FC = () => {
     // 法人身份证风险（仅当已填写时校验）
     const legalIdCard = getAnswerText('q9');
     if (legalIdCard && legalIdCard.trim()) {
-      const digits = legalIdCard.replace(/\D/g, '');
+      const digits = legalIdCard.replace(/[^0-9Xx]/g, '');
       if (digits.length !== 18) {
         risks.push({
           title: `身份证号位数不对（${digits.length}位）`,
-          content: `居民身份证号应为18位数字（含X），当前只输入了${digits.length}位，请核对。`
+          content: `居民身份证号应为18位（含末尾X），当前只输入了${digits.length}位，请核对。`
         });
       }
-      if (/^\d{17}[\dXx]$/.test(digits) === false && digits.length === 18) {
-        // 格式校验可按需开启
-      }
+    }
+
+    // 材料审核中
+    const inReviewCount = materials.filter(m => m.status === 'in_review').length;
+    if (inReviewCount > 0) {
+      risks.push({
+        title: `有 ${inReviewCount} 份材料正在审核中`,
+        content: '审核通常1-2个工作日内完成，如有问题会通过消息通知您。'
+      });
     }
 
     // 材料退回风险
@@ -256,7 +267,7 @@ const AssistantPage: React.FC = () => {
     }
 
     // 待签字风险
-    const needSignCount = materials.filter(m => (m.status === 'need_sign' || (m.needSign && !m.signed && m.status === 'uploaded'))).length;
+    const needSignCount = materials.filter(m => (m.status === 'need_sign' || (m.needSign && !m.signed && (m.status === 'uploaded' || m.status === 'in_review')))).length;
     if (needSignCount > 0) {
       risks.push({
         title: `有 ${needSignCount} 份材料需要签字盖章`,
@@ -305,14 +316,7 @@ const AssistantPage: React.FC = () => {
 
   const handleConfirmSubmit = () => {
     setShowPrecheck(false);
-    Taro.showLoading({ title: '提交中...' });
-    setTimeout(() => {
-      Taro.hideLoading();
-      Taro.showToast({ title: '已提交审核', icon: 'success' });
-      setTimeout(() => {
-        Taro.switchTab({ url: '/pages/messages/index' });
-      }, 800);
-    }, 1200);
+    Taro.navigateTo({ url: '/pages/submit-package/index' });
   };
 
   const currentGroup = questionGroups[currentQuestionGroupIndex];
